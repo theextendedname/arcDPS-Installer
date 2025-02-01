@@ -1,18 +1,18 @@
 package main
 
 import (
-        "io"
-        "net/http"
+		"io"
+		"net/http"
 		"net/url"
-        "os"
-        "path/filepath"
-        "fmt"
+		"os"
+		"path/filepath"
+		"fmt"
 		"golang.org/x/sys/windows/registry"
 		"bufio"
 		"strings"
 		"strconv"
 		"log"
-		
+
 )
 var version string // Declare version variable
 
