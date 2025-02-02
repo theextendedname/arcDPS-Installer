@@ -132,7 +132,6 @@ func folderPickerWindows() (string, error) {
 }
 
 
-
 func getResponseURI(url string) (string, error) {
         resp, err := http.Get(url)
         if err != nil {
