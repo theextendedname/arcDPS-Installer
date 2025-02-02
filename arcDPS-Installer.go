@@ -23,7 +23,15 @@ var version string // Declare version variable
 type Config struct {// Configuration structure
         GW2PathOverRide string `json:""`        
 }
-
+ // Define color codes (you can customize these)
+        const (
+                Reset  = "\033[0m"
+                Red    = "\033[31m"
+                Green  = "\033[32m"
+                Yellow = "\033[33m"
+                Blue   = "\033[34m"
+        )
+		
 func getInstallPath() (string, error) {
 	//read a key from the windows registry
         key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\ArenaNet\Guild Wars 2`, registry.QUERY_VALUE)
@@ -287,10 +295,15 @@ func getUserChoice(prompt string, defaultChoice int) int {
                 if input == "" {
                         return defaultChoice
                 }
+				if strings.ToUpper(input) == "Q" {
+                        return 6
+                }
 
                 choice, err := strconv.Atoi(input)
                 if err != nil || choice < 1 || choice > 7 {
-                        fmt.Println("Invalid input. Please enter a number between 1 and 7.")
+					    clearScreenANSI()
+						PrintHeader()
+                        fmt.Println(Yellow + "Invalid input. Please enter a number between 1 and 7." + Reset)
                         continue // Ask again
                 }
 
@@ -301,6 +314,16 @@ func clearScreenANSI() {
     fmt.Print("\033[H\033[2J") // Clear screen and move cursor to top-left
 }
 
+func PrintHeader(){
+fmt.Println("arcDPS-Instaler Version " , version) 
+headerStr := `by Extended
+This app can install, update and remove arcDPS and some Add-ons 
+This app has no affiliation with the arcDPS project or it's Add-ons
+********************************************************************
+********************************************************************`
+fmt.Println(headerStr) 
+}
+
 func updatePromptString(installDir string) string{
 	//declare prompt	
 prompt := `1) arcDPS Add-on only
@@ -308,9 +331,9 @@ prompt := `1) arcDPS Add-on only
 3) Boon-Table Add-on only
 4) Remove All Add-ons` + "\n"
 prompt += `5) Change GW2 install Path: [` + installDir + `]` + "\n"
-prompt +=  `6) Exit or Ctl+C 
-7) Install/Update All
-Choose a mode  1 - 7 (7 is default):`
+prompt +=  `6) or Q to Quit app
+7) Install/Update All` + "\n"
+prompt += `Choose a mode  1 - 7 ` + Yellow + `(7 is default)` + `:` + Reset 
 
 	return prompt 
 }
@@ -369,21 +392,10 @@ func main() {
 	}
 	 
 		
-	//PrintHeader
-fmt.Println("arcDPS-Instaler Version " , version) 
-fmt.Println("by Extended")
-fmt.Println("This app can install, update and remove arcDPS and some Add-ons ")
-fmt.Println("This app has no affiliation with the arcDPS project or it's Add-ons")
-fmt.Println("********************************************************************")
+	PrintHeader()
+
  for { 
 //declare prompt	
-//prompt := `1) arcDPS Add-on only
-//2) Healing Add-on only
-//3) Boon-Table Add-on only
-//4) Remove All Add-ons
-//5) Exit or Ctl+C 
-//6) Install/Update All
-//Choose a mode  1, 2, 3, 4, 5, or 6 (6 is default):`
 prompt := updatePromptString(installDir)
 				
 		choice := getUserChoice(prompt, 7)
@@ -393,7 +405,7 @@ prompt := updatePromptString(installDir)
 					if err != nil {
 							fmt.Println("Error downloading arcDPS:", err)
 					} else {
-							fmt.Println("arcDPS downloaded")
+							fmt.Println(Green + "arcDPS downloaded" + Reset)
 					}
 					fmt.Println("--------------------------------------------------")
 			case 2:
@@ -401,7 +413,7 @@ prompt := updatePromptString(installDir)
 					if err != nil {
 							fmt.Println("Error downloading Healing Add-on:", err)
 					} else {
-							fmt.Println("Healing Add-on downloaded")
+							fmt.Println(Green + "Healing Add-on downloaded" + Reset)
 					}
 					fmt.Println("--------------------------------------------------")
 			case 3: 
@@ -409,7 +421,7 @@ prompt := updatePromptString(installDir)
 						if err != nil {
 								fmt.Println("Error downloading BoonTable Add-on:", err)
 						} else {
-								fmt.Println("BoonTable Add-on downloaded")
+								fmt.Println(Green + "BoonTable Add-on downloaded" +Reset)
 						}
 						fmt.Println("--------------------------------------------------")   
 			 case 4: //remove All
@@ -436,11 +448,13 @@ prompt := updatePromptString(installDir)
 						//user canclled dialog. reset installDir
 						installDir = installDirTemp
 						clearScreenANSI()
+						PrintHeader()
 					} else {
 						//update config var and file
 						config.GW2PathOverRide = installDir
 						err = saveConfig(config, configFilePath)
 						clearScreenANSI()
+						PrintHeader()
 						if err != nil {
 								fmt.Println("Error saving config:", err)
 						} else {								
@@ -449,7 +463,7 @@ prompt := updatePromptString(installDir)
 					}
 					
 			 case 6: //Exit
-					fmt.Println("Good Bye....")
+					fmt.Println(Green + "Good Bye...." + Reset)
 					os.Exit(0) // Exit the the program
 			default:
 					//install all
@@ -457,7 +471,7 @@ prompt := updatePromptString(installDir)
 					if err != nil {
 							fmt.Println("Error downloading arcDPS:", err)
 					} else {
-							fmt.Println("arcDPS downloaded")
+							fmt.Println(Green + "arcDPS downloaded"  + Reset)
 					}
 					fmt.Println("--------------------------------------------------")
 					
@@ -465,7 +479,7 @@ prompt := updatePromptString(installDir)
 					if err != nil {
 							fmt.Println("Error downloading Healing Add-on:", err)
 					} else {
-							fmt.Println("Healing Add-on downloaded")
+							fmt.Println(Green + "Healing Add-on downloaded" + Reset)
 					}
 					fmt.Println("--------------------------------------------------")
 					
@@ -473,13 +487,12 @@ prompt := updatePromptString(installDir)
 					if err != nil {
 							fmt.Println("Error downloading BoonTable Add-on:", err)
 					} else {
-							fmt.Println("BoonTable Add-on downloaded")
+							fmt.Println(Green + "BoonTable Add-on downloaded"  + Reset)
 					}
 					fmt.Println("--------------------------------------------------")
 		}
-		fmt.Println("********************************************************************")
-		fmt.Println("********************************************************************")	
-		fmt.Println("Action Complete....")
+				
+		fmt.Println(Blue + "Action Complete...." + Reset)
 	}	
 	
        
