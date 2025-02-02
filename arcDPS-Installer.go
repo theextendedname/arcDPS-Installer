@@ -2,9 +2,11 @@ package main
 
 import (
 		"io"
+		"io/ioutil"
 		"net/http"
 		"net/url"
 		"os"
+		"os/exec"
 		"path/filepath"
 		"fmt"
 		"golang.org/x/sys/windows/registry"
@@ -12,11 +14,18 @@ import (
 		"strings"
 		"strconv"
 		"log"
+		"encoding/json"
+        
 
 )
 var version string // Declare version variable
 
+type Config struct {// Configuration structure
+        GW2PathOverRide string `json:""`        
+}
+
 func getInstallPath() (string, error) {
+	//read a key from the windows registry
         key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\ArenaNet\Guild Wars 2`, registry.QUERY_VALUE)
         if err != nil {
                 return "", fmt.Errorf("error opening registry key: %w", err)
@@ -30,6 +39,92 @@ func getInstallPath() (string, error) {
 
         return path, nil
 }
+
+func loadConfig(filepath string) (*Config, error) {
+	//load config from the arcDPS-Installer-Config.json
+	// Check if the config file exists.  If not, return a default config.
+    if _, err := os.Stat(filepath); os.IsNotExist(err) {        
+        return &Config{
+            GW2PathOverRide: "",
+           
+        }, nil // Return default config
+    }
+
+        data, err := ioutil.ReadFile(filepath)
+        if err != nil {
+                return nil, fmt.Errorf("error reading config file: %w", err)
+        }
+
+        var config Config
+        err = json.Unmarshal(data, &config)
+        if err != nil {
+                return nil, fmt.Errorf("error unmarshalling config: %w", err)
+        }
+
+        return &config, nil
+}
+
+func saveConfig(config *Config, filepath string) error {
+        data, err := json.MarshalIndent(config, "", "    ") // Use indent for pretty formatting
+        if err != nil {
+                return fmt.Errorf("error marshalling config: %w", err)
+        }
+		
+        err = ioutil.WriteFile(filepath, data, 0644) // 0644 permissions: rw-r--r--
+        if err != nil {
+                return fmt.Errorf("error writing config file: %w", err)
+        }
+
+        return nil
+}
+
+
+func folderPickerWindows() (string, error) {
+   // ... (Not sure using powershell winform is the best way to do this but it seems to work)
+
+    psScript := `
+        Add-Type -AssemblyName System.Windows.Forms
+        $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+        $dialog.Description = "Select a folder"
+        $result = $dialog.ShowDialog()
+        if ($result -eq "OK") {
+            $dialog.SelectedPath
+        }
+    `
+	//run the powershell command
+    cmd := exec.Command("powershell", "-Command", psScript)
+
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        return "", fmt.Errorf("folder picker failed: %v\nOutput: %s", err, output)
+    }
+
+    path := strings.TrimSpace(string(output))
+
+    if path == "" { // User cancelled. Handle this in main		
+        return "", nil
+    }
+
+    // Path Validation (Still Essential)
+    if _, err := os.Stat(path); os.IsNotExist(err) {
+        return "", fmt.Errorf("selected path does not exist: %s", path)
+    } else if err != nil {
+        return "", fmt.Errorf("error checking path: %w", err)
+    } else {
+        fileInfo, err := os.Stat(path)
+        if err != nil {
+            return "", fmt.Errorf("error getting file info: %w", err)
+        }
+        if !fileInfo.IsDir() {
+            return "", fmt.Errorf("selected path is not a directory: %s", path)
+        }
+    }
+
+    return path, nil
+}
+
+
+
 func getResponseURI(url string) (string, error) {
         resp, err := http.Get(url)
         if err != nil {
@@ -99,15 +194,11 @@ func install_arcDPS(installDir string, urlString string) error {
     if err == nil { // Handle potential URL parsing errors
         fileName := filepath.Base(parsedURL.Path)		
         fileDestinationPath = filepath.Join(installDir , fileName) // Join path components correctly
+		fmt.Println("Final URL:", urlString)
 		fmt.Println("arcDPS Dll destination: ", fileDestinationPath)
     }
 
 	err = downloadFile(fileDestinationPath, urlString)
-	//if err != nil {
-	//		fmt.Println("Error downloading file:", err)
-	//} else {
-	//		fmt.Println("File downloaded successfully to:", fileDestinationPath)
-	//}
 	
 	if err != nil {
 		return err
@@ -198,13 +289,44 @@ func getUserChoice(prompt string, defaultChoice int) int {
                 }
 
                 choice, err := strconv.Atoi(input)
-                if err != nil || choice < 1 || choice > 6 {
-                        fmt.Println("Invalid input. Please enter a number between 1 and 5.")
+                if err != nil || choice < 1 || choice > 7 {
+                        fmt.Println("Invalid input. Please enter a number between 1 and 7.")
                         continue // Ask again
                 }
 
                 return choice
         }
+}
+func clearScreenANSI() {
+    fmt.Print("\033[H\033[2J") // Clear screen and move cursor to top-left
+}
+
+func updatePromptString(installDir string) string{
+	//declare prompt	
+prompt := `1) arcDPS Add-on only
+2) Healing Add-on only
+3) Boon-Table Add-on only
+4) Remove All Add-ons` + "\n"
+prompt += `5) Change GW2 install Path: [` + installDir + `]` + "\n"
+prompt +=  `6) Exit or Ctl+C 
+7) Install/Update All
+Choose a mode  1 - 7 (7 is default):`
+
+	return prompt 
+}
+
+func updateInstallDir() string{
+	installDir, err := folderPickerWindows()
+		if err != nil {
+				log.Fatal(err)
+		}
+
+		if installDir == "" {
+				fmt.Println("No folder selected.")
+		} else {
+				fmt.Println("Selected folder:", installDir)
+		}
+	return installDir
 }
 
 func main() {
@@ -214,13 +336,38 @@ func main() {
 	var HealingAddon_urlString string= "https://github.com/Krappa322/arcdps_healing_stats/releases/latest"
 	var BoonTableAddon_urlString string= "https://github.com/knoxfighter/GW2-ArcDPS-Boon-Table/releases/latest"
 	
-	 installPath, err := getInstallPath()
-        if err != nil {
-                fmt.Println("Error:", err)
-        } else {
-			 installDir = filepath.Dir(installPath)
-             fmt.Println("Guild Wars 2 Install Path:", installDir)
-        }
+	//returns the absolute path to the executable file itself
+	exePath, err := os.Executable()
+	if err != nil {
+			log.Fatal("Error getting executable path:", err)
+	}
+	//get the directory containing the executable
+	exeDir := filepath.Dir(exePath)
+	configFilePath := exeDir +"/arcDPS-Installer-Config.json" // config path
+	//load config 
+	config, err := loadConfig(configFilePath)
+	if err != nil {
+			fmt.Println("Error loading config:", err)
+		
+	}else {
+		if config.GW2PathOverRide == "" {
+			// no config found use what's in the registry
+			fmt.Println("Config file not found. Reading from registry.")
+			installPath, err := getInstallPath()
+			if err != nil {
+					fmt.Println("Error:", err)
+					//install directory not found. Warn user
+					installDir = "Tragedy! Your GW2 install directory is missing. Please use Opt 5"				
+			} else {
+				 installDir = filepath.Dir(installPath)
+				 fmt.Println("Guild Wars 2 Install Path:", installDir)
+			}
+		}else{
+		//config found use it
+		installDir = config.GW2PathOverRide
+		}
+	}
+	 
 		
 	//PrintHeader
 fmt.Println("arcDPS-Instaler Version " , version) 
@@ -230,15 +377,16 @@ fmt.Println("This app has no affiliation with the arcDPS project or it's Add-ons
 fmt.Println("********************************************************************")
  for { 
 //declare prompt	
-prompt := `1) arcDPS Add-on only
-2) Healing Add-on only
-3) Boon-Table Add-on only
-4) Remove All Add-ons
-5) Exit or Ctl+C 
-6) Install/Update All
-Choose a mode  1, 2, 3, 4, 5, or 6 (6 is default):`
-		
-		choice := getUserChoice(prompt, 6)
+//prompt := `1) arcDPS Add-on only
+//2) Healing Add-on only
+//3) Boon-Table Add-on only
+//4) Remove All Add-ons
+//5) Exit or Ctl+C 
+//6) Install/Update All
+//Choose a mode  1, 2, 3, 4, 5, or 6 (6 is default):`
+prompt := updatePromptString(installDir)
+				
+		choice := getUserChoice(prompt, 7)
 		switch choice {
 			case 1:
 					err = install_arcDPS(installDir, arcDPS_urlString)
@@ -281,7 +429,26 @@ Choose a mode  1, 2, 3, 4, 5, or 6 (6 is default):`
 										fmt.Printf("File %s deleted successfully.\n", file)
 								}
 						}
-			 case 5: //Exit
+			 case 5: //changes Add-on install path
+					installDirTemp := installDir //save value incase urser cancels filepickre
+					installDir = updateInstallDir()
+					if installDir == "" {
+						//user canclled dialog. reset installDir
+						installDir = installDirTemp
+						clearScreenANSI()
+					} else {
+						//update config var and file
+						config.GW2PathOverRide = installDir
+						err = saveConfig(config, configFilePath)
+						clearScreenANSI()
+						if err != nil {
+								fmt.Println("Error saving config:", err)
+						} else {								
+								fmt.Println("Config saved successfully.")
+						}
+					}
+					
+			 case 6: //Exit
 					fmt.Println("Good Bye....")
 					os.Exit(0) // Exit the the program
 			default:
@@ -312,7 +479,7 @@ Choose a mode  1, 2, 3, 4, 5, or 6 (6 is default):`
 		}
 		fmt.Println("********************************************************************")
 		fmt.Println("********************************************************************")	
-		fmt.Println("Install Complete....")
+		fmt.Println("Action Complete....")
 	}	
 	
        
