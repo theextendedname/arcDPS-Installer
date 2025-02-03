@@ -168,7 +168,7 @@ func downloadFile(dlFilepath string, url string) error {
         defer resp.Body.Close()
 
         if resp.StatusCode != http.StatusOK {
-                return fmt.Errorf("bad status: %s", resp.Status)
+                return fmt.Errorf(Red + "bad status: %s" + Reset, resp.Status)
         }
 
 
@@ -177,7 +177,7 @@ func downloadFile(dlFilepath string, url string) error {
 		 if directoryExists(dir2Test) {
                 fmt.Println("Directory exists:", dir2Test)
         } else {
-                fmt.Println("Directory does NOT exist:", dir2Test)
+                fmt.Println(Red + "Directory does NOT exist:" + Reset, dir2Test)
         }
 
         out, err := os.Create(dlFilepath)
@@ -218,7 +218,7 @@ func install_Healing_addon(installDir string, urlString string) error {
 	
 	versionURL, err := getResponseURI(urlString)
         if err != nil {
-                fmt.Println("Error:", err)
+                fmt.Println(Red + "Error:" + Reset, err)
         } else {
                 fmt.Println("Final URL:", versionURL)
         }
@@ -255,7 +255,7 @@ func insatll_BoonTable_Addon(installDir string, urlString string) error {
 	
 	versionURL, err := getResponseURI(urlString)
         if err != nil {
-                fmt.Println("Error:", err)
+                fmt.Println(Red + "Error:" + Reset, err)
         } else {
                 fmt.Println("Final URL:", versionURL)
         }
@@ -352,7 +352,8 @@ func updateInstallDir() string{
 }
 
 func main() {
-	var installDir string = ""
+	//main go function
+	var installDir string = "" //install path for GW2-64.exe
 	
 	var arcDPS_urlString string= "https://www.deltaconnected.com/arcdps/x64/d3d11.dll"
 	var HealingAddon_urlString string= "https://github.com/Krappa322/arcdps_healing_stats/releases/latest"
@@ -361,7 +362,7 @@ func main() {
 	//returns the absolute path to the executable file itself
 	exePath, err := os.Executable()
 	if err != nil {
-			log.Fatal("Error getting executable path:", err)
+			log.Fatal("Error getting executable path:" , err)
 	}
 	//get the directory containing the executable
 	exeDir := filepath.Dir(exePath)
@@ -369,18 +370,20 @@ func main() {
 	//load config 
 	config, err := loadConfig(configFilePath)
 	if err != nil {
-			fmt.Println("Error loading config:", err)
+			fmt.Println(Red + "Error loading config:" + Reset, err)
 		
 	}else {
 		if config.GW2PathOverRide == "" {
 			// no config found use what's in the registry
+			
 			fmt.Println("Config file not found. Reading from registry.")
 			installPath, err := getInstallPath()
-			if err != nil {
-					fmt.Println("Error:", err)
+			if err != nil || installPath == ""{
+					fmt.Println(Red + "Registry Read Error:" + Reset, err)
 					//install directory not found. Warn user
-					installDir = "Tragedy! Your GW2 install directory is missing. Please use Opt 5"				
+					installDir = Yellow + "Tragedy! Your GW2 install directory is missing. Please use Opt 5" + Reset				
 			} else {
+				
 				 installDir = filepath.Dir(installPath)
 				 fmt.Println("Guild Wars 2 Install Path:", installDir)
 			}
@@ -400,46 +403,50 @@ prompt := updatePromptString(installDir)
 		choice := getUserChoice(prompt, 7)
 		switch choice {
 			case 1:
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 					err = install_arcDPS(installDir, arcDPS_urlString)
 					if err != nil {
-							fmt.Println("Error downloading arcDPS:", err)
+							fmt.Println(Red + "Error downloading arcDPS:" + Reset, err)
 					} else {
 							fmt.Println(Green + "arcDPS downloaded" + Reset)
 					}
-					fmt.Println("--------------------------------------------------")
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 			case 2:
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 					err = install_Healing_addon(installDir, HealingAddon_urlString)
 					if err != nil {
-							fmt.Println("Error downloading Healing Add-on:", err)
+							fmt.Println(Red + "Error downloading Healing Add-on:" + Reset, err)
 					} else {
 							fmt.Println(Green + "Healing Add-on downloaded" + Reset)
 					}
-					fmt.Println("--------------------------------------------------")
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 			case 3: 
+					   fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 					   err = insatll_BoonTable_Addon(installDir, BoonTableAddon_urlString)
 						if err != nil {
-								fmt.Println("Error downloading BoonTable Add-on:", err)
+								fmt.Println(Red + "Error downloading BoonTable Add-on:" + Reset, err)
 						} else {
 								fmt.Println(Green + "BoonTable Add-on downloaded" +Reset)
 						}
-						fmt.Println("--------------------------------------------------")   
+						fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 			 case 4: //remove All
-			 
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 					files := []string{installDir + "\\d3d11.dll", installDir + "\\arcdps_healing_stats.dll", installDir + "\\d3d9_arcdps_table.dll", installDir + "\\bin64\\d3d11.dll", installDir + "\\bin64\\arcdps_healing_stats.dll", installDir + "\\bin64\\d3d9_arcdps_table.dll"}
 						for _, file := range files {
 								err := os.Remove(file)
 								if err != nil {
 										if os.IsNotExist(err) {
-												fmt.Printf("File %s does not exist, skipping.\n", file)
+												fmt.Printf(Red + "File %s does not exist, skipping.\n" + Reset, file)
 										} else if os.IsPermission(err) {
 												log.Fatalf("Permission denied deleting %s: %v", file, err)
 										} else {
 												log.Fatalf("Error deleting %s: %v", file, err)
 										}
 								} else {
-										fmt.Printf("File %s deleted successfully.\n", file)
+										fmt.Printf(Green + "File %s deleted successfully.\n" + Reset, file)
 								}
 						}
+						fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 			 case 5: //changes Add-on install path
 					installDirTemp := installDir //save value incase urser cancels filepickre
 					installDir = updateInstallDir()
@@ -455,9 +462,9 @@ prompt := updatePromptString(installDir)
 						clearScreenANSI()
 						PrintHeader()
 						if err != nil {
-								fmt.Println("Error saving config:", err)
+								fmt.Println(Red + "Error saving config:" + Reset, err)
 						} else {								
-								fmt.Println("Config saved successfully.")
+								fmt.Println(Green + "Config saved successfully." + Reset)
 						}
 					}
 					
@@ -466,29 +473,30 @@ prompt := updatePromptString(installDir)
 					os.Exit(0) // Exit the the program
 			default:
 					//install all
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 					err = install_arcDPS(installDir, arcDPS_urlString)
 					if err != nil {
-							fmt.Println("Error downloading arcDPS:", err)
+							fmt.Println(Red + "Error downloading arcDPS:" + Reset, err)
 					} else {
 							fmt.Println(Green + "arcDPS downloaded"  + Reset)
 					}
-					fmt.Println("--------------------------------------------------")
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 					
 				   err = install_Healing_addon(installDir, HealingAddon_urlString)
 					if err != nil {
-							fmt.Println("Error downloading Healing Add-on:", err)
+							fmt.Println(Red + "Error downloading Healing Add-on:" + Reset, err)
 					} else {
 							fmt.Println(Green + "Healing Add-on downloaded" + Reset)
 					}
-					fmt.Println("--------------------------------------------------")
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset) 
 					
 					   err = insatll_BoonTable_Addon(installDir, BoonTableAddon_urlString)
 					if err != nil {
-							fmt.Println("Error downloading BoonTable Add-on:", err)
+							fmt.Println(Red + "Error downloading BoonTable Add-on:" + Reset, err)
 					} else {
 							fmt.Println(Green + "BoonTable Add-on downloaded"  + Reset)
 					}
-					fmt.Println("--------------------------------------------------")
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset) 
 		}
 				
 		fmt.Println(Blue + "Action Complete...." + Reset)
