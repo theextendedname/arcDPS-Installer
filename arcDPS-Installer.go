@@ -48,6 +48,23 @@ func getInstallPath() (string, error) {
         return path, nil
 }
 
+func versionToInt(versionStr string) int {
+	//used to compair app version numbers
+	if versionStr == "" {
+		//set minimum version
+		versionStr = "0.0.1"
+	}
+    parts := strings.Split(versionStr, ".")
+    var paddedParts []string
+    for _, part := range parts {
+        paddedParts = append(paddedParts, fmt.Sprintf("%03s", part))
+    }
+    concatenated := strings.Join(paddedParts, "")
+    intVersion, _ := strconv.Atoi(concatenated)
+    return intVersion
+
+}
+
 func loadConfig(filepath string) (*Config, error) {
 	//load config from the arcDPS-Installer-Config.json
 	// Check if the config file exists.  If not, return a default config.
@@ -248,6 +265,28 @@ func install_Healing_addon(installDir string, urlString string) error {
 	return nil
 }
 
+func checkGitHub_AppUpdates() string{
+	urlString := "https://github.com/theextendedname/arcDPS-Installer/releases/latest"
+	var Addon_Version string = ""
+	
+	versionURL, err := getResponseURI(urlString)
+        if err != nil {
+                fmt.Println(Red + "Update Check Error:" + Reset, err)
+        } 
+		
+		// Extract the version from the URL  
+    parsedVersionURL, err := url.Parse(versionURL)
+    if err == nil { // Handle potential URL parsing errors
+	
+        Addon_Version = filepath.Base(parsedVersionURL.Path)
+		return Addon_Version
+		//fmt.Println(Addon_Version)
+	 }	
+	//return minimum version
+	return "v0.0.1"
+   
+	
+}
 
 func insatll_BoonTable_Addon(installDir string, urlString string) error {
 	var fileDestinationPath string = ""
@@ -315,7 +354,8 @@ func clearScreenANSI() {
 
 func PrintHeader(){
 fmt.Println("arcDPS-Instaler Version " , version) 
-headerStr := `by Extended
+headerStr := `by TheExtendedName 
+Project website https://github.com/theextendedname/arcDPS-Installer
 This app can install, update and remove arcDPS and some Add-ons 
 This app has no affiliation with the arcDPS project or it's Add-ons
 ********************************************************************
@@ -359,6 +399,8 @@ func main() {
 	var HealingAddon_urlString string= "https://github.com/Krappa322/arcdps_healing_stats/releases/latest"
 	var BoonTableAddon_urlString string= "https://github.com/knoxfighter/GW2-ArcDPS-Boon-Table/releases/latest"
 	
+	PrintHeader()
+	
 	//returns the absolute path to the executable file itself
 	exePath, err := os.Executable()
 	if err != nil {
@@ -393,8 +435,7 @@ func main() {
 		}
 	}
 	 
-		
-	PrintHeader()
+	
 
  for { 
 //declare prompt	
@@ -448,7 +489,7 @@ prompt := updatePromptString(installDir)
 						}
 						fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 			 case 5: //changes Add-on install path
-					installDirTemp := installDir //save value incase urser cancels filepickre
+					installDirTemp := installDir //save value incase urser cancels filepicker
 					installDir = updateInstallDir()
 					if installDir == "" {
 						//user canclled dialog. reset installDir
@@ -472,6 +513,7 @@ prompt := updatePromptString(installDir)
 					fmt.Println(Green + "Good Bye...." + Reset)
 					os.Exit(0) // Exit the the program
 			default:
+					
 					//install all
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 					err = install_arcDPS(installDir, arcDPS_urlString)
@@ -497,6 +539,16 @@ prompt := updatePromptString(installDir)
 							fmt.Println(Green + "BoonTable Add-on downloaded"  + Reset)
 					}
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset) 
+					//check for app updates
+					
+					latestAppVersion := checkGitHub_AppUpdates()
+					latestAppVersionInt := versionToInt(latestAppVersion[1:])
+					versionInt := versionToInt(version)
+					//version is set at compile time so in could be empty during testing
+					//versionInt will be set to 0.0.1
+					if versionInt < latestAppVersionInt {
+						fmt.Println(Yellow + "New Version " + latestAppVersion + " Avalible @  https://github.com/theextendedname/arcDPS-Installer/releases/latest" + Reset) 
+					}	
 		}
 				
 		fmt.Println(Blue + "Action Complete...." + Reset)
