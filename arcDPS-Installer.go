@@ -356,7 +356,7 @@ func PrintHeader(){
 fmt.Println("arcDPS-Instaler Version " , version) 
 headerStr := `by TheExtendedName 
 Project website https://github.com/theextendedname/arcDPS-Installer
-This app can install, update and remove arcDPS and some Add-ons 
+This app can install, update and remove arcDPS, Healing, and Boon-Table Add-ons 
 This app has no affiliation with the arcDPS project or it's Add-ons
 ********************************************************************
 ********************************************************************`
@@ -368,7 +368,7 @@ func updatePromptString(installDir string) string{
 prompt := `1) arcDPS Add-on only
 2) Healing Add-on only
 3) Boon-Table Add-on only
-4) Remove All Add-ons` + "\n"
+4) Remove All Supported Add-ons` + "\n"
 prompt += `5) Change GW2 install Path: [` + installDir + `]` + "\n"
 prompt +=  `6) or Q to Quit app
 7) Install/Update All` + "\n"
