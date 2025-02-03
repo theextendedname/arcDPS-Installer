@@ -51,8 +51,8 @@ func getInstallPath() (string, error) {
 func versionToInt(versionStr string) int {
 	//used to compair app version numbers
 	if versionStr == "" {
-		//set minimum version
-		versionStr = "0.0.1"
+		//set minimum version		
+		versionStr = "0.0.1"		
 	}
     parts := strings.Split(versionStr, ".")
     var paddedParts []string
@@ -211,6 +211,7 @@ func downloadFile(dlFilepath string, url string) error {
 
         return nil
 }
+
 func install_arcDPS(installDir string, urlString string) error {
 	var fileDestinationPath string = ""
 	 // Extract the filename from the URL  
@@ -218,7 +219,7 @@ func install_arcDPS(installDir string, urlString string) error {
     if err == nil { // Handle potential URL parsing errors
         fileName := filepath.Base(parsedURL.Path)		
         fileDestinationPath = filepath.Join(installDir , fileName) // Join path components correctly
-		fmt.Println("Final URL:", urlString)
+		fmt.Println("Final URL:", "https://www.deltaconnected.com/arcdps/x64")
 		fmt.Println("arcDPS Dll destination: ", fileDestinationPath)
     }
 
@@ -229,6 +230,7 @@ func install_arcDPS(installDir string, urlString string) error {
 	}
 	return nil
 }
+
 func install_Healing_addon(installDir string, urlString string) error {
 	var fileDestinationPath string = ""
 	var Addon_Version string = ""
@@ -265,8 +267,8 @@ func install_Healing_addon(installDir string, urlString string) error {
 	return nil
 }
 
-func checkGitHub_AppUpdates() string{
-	urlString := "https://github.com/theextendedname/arcDPS-Installer/releases/latest"
+func getLatestAppVer_Github(urlString string) string{
+	//urlString := "https://github.com/theextendedname/arcDPS-Installer/releases/latest"
 	var Addon_Version string = ""
 	
 	versionURL, err := getResponseURI(urlString)
@@ -352,7 +354,12 @@ func clearScreenANSI() {
     fmt.Print("\033[H\033[2J") // Clear screen and move cursor to top-left
 }
 
-func PrintHeader(){
+func PrintHeader(){	
+	if version == "" {
+		//version is set at compile time so in could be empty during testing
+		//versionInt will be set to 0.0.1
+		version = "0.0.1"
+	}
 fmt.Println("arcDPS-Instaler Version " , version) 
 headerStr := `by TheExtendedName 
 Project website https://github.com/theextendedname/arcDPS-Installer
@@ -398,6 +405,7 @@ func main() {
 	var arcDPS_urlString string= "https://www.deltaconnected.com/arcdps/x64/d3d11.dll"
 	var HealingAddon_urlString string= "https://github.com/Krappa322/arcdps_healing_stats/releases/latest"
 	var BoonTableAddon_urlString string= "https://github.com/knoxfighter/GW2-ArcDPS-Boon-Table/releases/latest"
+	var arcDPSInstaller_urlString string = "https://github.com/theextendedname/arcDPS-Installer/releases/latest"
 	
 	PrintHeader()
 	
@@ -541,7 +549,8 @@ prompt := updatePromptString(installDir)
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset) 
 					//check for app updates
 					
-					latestAppVersion := checkGitHub_AppUpdates()
+					latestAppVersion := getLatestAppVer_Github(arcDPSInstaller_urlString)
+					//version strings to int 
 					latestAppVersionInt := versionToInt(latestAppVersion[1:])
 					versionInt := versionToInt(version)
 					//version is set at compile time so in could be empty during testing
