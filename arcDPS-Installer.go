@@ -24,14 +24,26 @@ type Config struct {// Configuration structure
         GW2PathOverRide string `json:""`        
 }
  // Define color codes (you can customize these)
-        const (
-                Reset  = "\033[0m"
-                Red    = "\033[31m"
-                Green  = "\033[32m"
-                Yellow = "\033[33m"
-                Blue   = "\033[34m"
-        )
-		
+const (
+		Reset  = "\033[0m"
+		Red    = "\033[31m"
+		Green  = "\033[32m"
+		Yellow = "\033[33m"
+		Blue   = "\033[34m"
+)
+//define urls 
+const (
+arcDPS_urlString string = "https://www.deltaconnected.com/arcdps/x64/d3d11.dll"
+HealingAddon_urlString string = "https://github.com/Krappa322/arcdps_healing_stats/releases/latest"
+BoonTableAddon_urlString string = "https://github.com/knoxfighter/GW2-ArcDPS-Boon-Table/releases/latest"
+arcDPSInstaller_urlString string = "https://github.com/theextendedname/arcDPS-Installer/releases/latest"
+)		
+var arcDPS_DlUrlAry = []string{"","https://www.deltaconnected.com/arcdps/x64"}
+var HealingAddon_DlUrlAry = []string{"https://github.com/Krappa322/arcdps_healing_stats/releases/download/","/arcdps_healing_stats.dll"}
+var BoonTableAddon_DlUrlAry = []string{"https://github.com/knoxfighter/GW2-ArcDPS-Boon-Table/releases/download/","/d3d9_arcdps_table.dll"}
+var arcDPSInstaller_DlUrlAry =  []string{"",""}
+
+
 func getInstallPath() (string, error) {
 	//read a key from the windows registry
         key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\ArenaNet\Guild Wars 2`, registry.QUERY_VALUE)
@@ -212,68 +224,14 @@ func downloadFile(dlFilepath string, url string) error {
         return nil
 }
 
-func install_arcDPS(installDir string, urlString string) error {
-	var fileDestinationPath string = ""
-	 // Extract the filename from the URL  
-    parsedURL, err := url.Parse(urlString)
-    if err == nil { // Handle potential URL parsing errors
-        fileName := filepath.Base(parsedURL.Path)		
-        fileDestinationPath = filepath.Join(installDir , fileName) // Join path components correctly
-		fmt.Println("Final URL:", "https://www.deltaconnected.com/arcdps/x64")
-		fmt.Println("arcDPS Dll destination: ", fileDestinationPath)
-    }
-
-	err = downloadFile(fileDestinationPath, urlString)
-	
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func install_Healing_addon(installDir string, urlString string) error {
-	var fileDestinationPath string = ""
-	var Addon_Version string = ""
-	
-	versionURL, err := getResponseURI(urlString)
-        if err != nil {
-                fmt.Println(Red + "Error:" + Reset, err)
-        } else {
-                fmt.Println("Final URL:", versionURL)
-        }
-		
-		// Extract the version from the URL  
-    parsedVersionURL, err := url.Parse(versionURL)
-    if err == nil { // Handle potential URL parsing errors
-        Addon_Version = filepath.Base(parsedVersionURL.Path)
-		//set the new url to latest version
-		urlString = "https://github.com/Krappa322/arcdps_healing_stats/releases/download/" + Addon_Version + "/arcdps_healing_stats.dll"		
-        fmt.Println("Healing Add-on Version: ", Addon_Version)
-    }
-	 // Extract the filename from the URL  
-    parsedURL, err := url.Parse(urlString)
-    if err == nil { // Handle potential URL parsing errors
-        fileName := filepath.Base(parsedURL.Path)		
-        fileDestinationPath = filepath.Join(installDir , fileName) // Join path components correctly
-		fmt.Println("Healing Add-on Dll destination: ", fileDestinationPath)
-    }
-
-	
-	err = downloadFile(fileDestinationPath, urlString)
-	
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func getLatestAppVer_Github(urlString string) string{
+func getLatestAppVer_Github(urlString string) (string, error){
 	//urlString := "https://github.com/theextendedname/arcDPS-Installer/releases/latest"
 	var Addon_Version string = ""
 	
 	versionURL, err := getResponseURI(urlString)
         if err != nil {
-                fmt.Println(Red + "Update Check Error:" + Reset, err)
+                
+				return "", fmt.Errorf(Red + "Update Check Error:" + Reset, err)
         } 
 		
 		// Extract the version from the URL  
@@ -281,40 +239,38 @@ func getLatestAppVer_Github(urlString string) string{
     if err == nil { // Handle potential URL parsing errors
 	
         Addon_Version = filepath.Base(parsedVersionURL.Path)
-		return Addon_Version
+		return Addon_Version, nil
 		//fmt.Println(Addon_Version)
 	 }	
 	//return minimum version
-	return "v0.0.1"
+	return "v0.0.1", err
    
 	
 }
 
-func insatll_BoonTable_Addon(installDir string, urlString string) error {
-	var fileDestinationPath string = ""
-	var Addon_Version string = ""
-	
-	versionURL, err := getResponseURI(urlString)
-        if err != nil {
-                fmt.Println(Red + "Error:" + Reset, err)
-        } else {
-                fmt.Println("Final URL:", versionURL)
-        }
-		
-		// Extract the version from the URL  
-    parsedVersionURL, err := url.Parse(versionURL)
-    if err == nil { // Handle potential URL parsing errors
-        Addon_Version = filepath.Base(parsedVersionURL.Path)
+func insatll_Addon(installDir string, urlString string, addonName string, DlUrlAry []string ) error {
+	var fileDestinationPath string = ""		
+	if DlUrlAry[0] != "" {	//add-on is on github	
+		Addon_Version , err:= getLatestAppVer_Github(urlString)
+		if err != nil {
+			return fmt.Errorf(Red + "Error checking " + addonName + " Add-on version:" + Reset, err)
+		}else { // Handle potential URL parsing errors		
 		//set the new url to latest version
-		urlString = "https://github.com/knoxfighter/GW2-ArcDPS-Boon-Table/releases/download/" + Addon_Version + "/d3d9_arcdps_table.dll"		
-        fmt.Println("BoonTable Add-on Version: ", Addon_Version)
-    }
+		urlString = DlUrlAry[0] + Addon_Version + DlUrlAry[1]		
+		fmt.Println(addonName, "Add-on Version:", Addon_Version)
+		fmt.Println("Final URL:", urlString)
+		}
+	}
 	 // Extract the filename from the URL  
     parsedURL, err := url.Parse(urlString)
     if err == nil { // Handle potential URL parsing errors
         fileName := filepath.Base(parsedURL.Path)		
         fileDestinationPath = filepath.Join(installDir , fileName) // Join path components correctly
-		fmt.Println("BoonTable Add-on Dll destination: ", fileDestinationPath)
+		if DlUrlAry[0] == ""{	//add-on is not on github
+			//no version numb 
+			fmt.Println("Final URL:", DlUrlAry[1])			
+		} 
+		fmt.Println(addonName, "Add-on Dll destination: [" + fileDestinationPath +"]")
     }
 	
 	err = downloadFile(fileDestinationPath, urlString)
@@ -324,6 +280,7 @@ func insatll_BoonTable_Addon(installDir string, urlString string) error {
 	}
 	return nil
 }
+
 func getUserChoice(prompt string, defaultChoice int) int {
         reader := bufio.NewReader(os.Stdin)
 
@@ -402,11 +359,6 @@ func main() {
 	//main go function
 	var installDir string = "" //install path for GW2-64.exe
 	
-	var arcDPS_urlString string= "https://www.deltaconnected.com/arcdps/x64/d3d11.dll"
-	var HealingAddon_urlString string= "https://github.com/Krappa322/arcdps_healing_stats/releases/latest"
-	var BoonTableAddon_urlString string= "https://github.com/knoxfighter/GW2-ArcDPS-Boon-Table/releases/latest"
-	var arcDPSInstaller_urlString string = "https://github.com/theextendedname/arcDPS-Installer/releases/latest"
-	
 	PrintHeader()
 	
 	//returns the absolute path to the executable file itself
@@ -453,7 +405,8 @@ prompt := updatePromptString(installDir)
 		switch choice {
 			case 1:
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
-					err = install_arcDPS(installDir, arcDPS_urlString)
+					//err = install_arcDPS(installDir, arcDPS_urlString)
+					err = insatll_Addon(installDir, arcDPS_urlString, "arcDPS", arcDPS_DlUrlAry )
 					if err != nil {
 							fmt.Println(Red + "Error downloading arcDPS:" + Reset, err)
 					} else {
@@ -462,7 +415,8 @@ prompt := updatePromptString(installDir)
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 			case 2:
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
-					err = install_Healing_addon(installDir, HealingAddon_urlString)
+					//err = install_Healing_addon(installDir, HealingAddon_urlString)
+					err = insatll_Addon(installDir, HealingAddon_urlString, "Healing", HealingAddon_DlUrlAry )
 					if err != nil {
 							fmt.Println(Red + "Error downloading Healing Add-on:" + Reset, err)
 					} else {
@@ -471,7 +425,8 @@ prompt := updatePromptString(installDir)
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
 			case 3: 
 					   fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
-					   err = insatll_BoonTable_Addon(installDir, BoonTableAddon_urlString)
+					   //err = insatll_BoonTable_Addon(installDir, BoonTableAddon_urlString)
+					   err = insatll_Addon(installDir, BoonTableAddon_urlString, "Boon Table", BoonTableAddon_DlUrlAry )
 						if err != nil {
 								fmt.Println(Red + "Error downloading BoonTable Add-on:" + Reset, err)
 						} else {
@@ -524,15 +479,18 @@ prompt := updatePromptString(installDir)
 					
 					//install all
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
-					err = install_arcDPS(installDir, arcDPS_urlString)
+					
+					//err = install_arcDPS(installDir, arcDPS_urlString)
+					err = insatll_Addon(installDir, arcDPS_urlString, "arcDPS", arcDPS_DlUrlAry )
 					if err != nil {
 							fmt.Println(Red + "Error downloading arcDPS:" + Reset, err)
 					} else {
 							fmt.Println(Green + "arcDPS downloaded"  + Reset)
 					}
-					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   
-					
-				   err = install_Healing_addon(installDir, HealingAddon_urlString)
+					fmt.Println(Yellow + "--------------------------------------------------" + Reset)   					
+				   
+				   //err = install_Healing_addon(installDir, HealingAddon_urlString)
+					err = insatll_Addon(installDir, HealingAddon_urlString, "Healing", HealingAddon_DlUrlAry )
 					if err != nil {
 							fmt.Println(Red + "Error downloading Healing Add-on:" + Reset, err)
 					} else {
@@ -540,7 +498,8 @@ prompt := updatePromptString(installDir)
 					}
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset) 
 					
-					   err = insatll_BoonTable_Addon(installDir, BoonTableAddon_urlString)
+					   //err = insatll_BoonTable_Addon(installDir, BoonTableAddon_urlString)
+					err = insatll_Addon(installDir, BoonTableAddon_urlString, "Boon Table", BoonTableAddon_DlUrlAry )
 					if err != nil {
 							fmt.Println(Red + "Error downloading BoonTable Add-on:" + Reset, err)
 					} else {
@@ -549,7 +508,10 @@ prompt := updatePromptString(installDir)
 					fmt.Println(Yellow + "--------------------------------------------------" + Reset) 
 					//check for app updates
 					
-					latestAppVersion := getLatestAppVer_Github(arcDPSInstaller_urlString)
+					latestAppVersion , err:= getLatestAppVer_Github(arcDPSInstaller_urlString)
+					if err != nil {
+							fmt.Println(Red + "Error checking arcDPS-Installer version:" + Reset, err)
+					}
 					//version strings to int 
 					latestAppVersionInt := versionToInt(latestAppVersion[1:])
 					versionInt := versionToInt(version)
