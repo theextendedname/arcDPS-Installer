@@ -11,7 +11,8 @@ A simple app to download the following Guild Wars 2 add-ons and place them in yo
 - Download the app
 - Run the app
 - Press Enter to Install or Update Addons
-- Press 4 + Enter to Uninstall Addons
-- Press Q + Enter to Quit
-- ![operation](https://github.com/theextendedname/arcDPS-Installer/blob/main/operation.gif)
+- Use ↑↓ Arrow or JK to select options
+- Press Ctrl + Z to switch between Main Menu and Status Views 
+- Press Q to Quit
+- ![operation](https://github.com/theextendedname/arcDPS-Installer/blob/main/arcDPS-Installer-Demo.gif)
 Enjoy!
