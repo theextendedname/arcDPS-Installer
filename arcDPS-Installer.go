@@ -5,8 +5,7 @@ import (
 		"io/ioutil"		
 		"net/http"
 		"net/url"
-		"os"
-		"os/exec"		
+		"os"				
 		"path/filepath"
 		"fmt"
 		"time"
@@ -16,21 +15,16 @@ import (
 		"encoding/json"		
         tea "github.com/charmbracelet/bubbletea"
 		"github.com/charmbracelet/lipgloss"
-		"golang.org/x/sys/windows/registry"
+		"golang.org/x/sys/windows/registry"	
+		"arcDPS_Installer/folderpicker"			
 )
+
 var version string // Declare version variable
 
 type Config struct {// Configuration structure
         GW2PathOverRide string `json:""`        
 }
- // Define color codes (you can customize these)
-//const (
-//		Reset  = "\033[0m"
-//		Red    = "\033[31m"
-//		Green  = "\033[32m"
-//		Yellow = "\033[33m"
-//		Blue   = "\033[34m"
-//)
+
 //var installDir string = "D:\\Games\\Guild Wars 2" //install path for GW2-64.exe
 var installDir string = "C:\\Program Files\\Guild Wars 2" //default install path for GW2-64.exe
 var configFilePath string = ""
@@ -60,6 +54,7 @@ type model struct {
 }
 type statusMsg string 
 type errMsg struct{ err error }
+
 
 // For messages that contain errors 
 // error interface on the message.
@@ -157,49 +152,6 @@ func directoryExists(path string) bool {
         return false // Treat as not exists for simplicity.  You might want to handle other errors differently in your specific use case.
 }
 
-func folderPickerWindows() (string, error) {
-   // ... (Not sure using powershell winform is the best way to do this but it seems to work)
-
-    psScript := `
-        Add-Type -AssemblyName System.Windows.Forms
-        $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-        $dialog.Description = "Select a folder"
-        $result = $dialog.ShowDialog()
-        if ($result -eq "OK") {
-            $dialog.SelectedPath
-        }
-    `
-	//run the powershell command
-    cmd := exec.Command("powershell", "-Command", psScript)
-
-    output, err := cmd.CombinedOutput()
-    if err != nil {
-        return "", fmt.Errorf("folder picker failed: %v\nOutput: %s", err, output)
-    }
-
-    path := strings.TrimSpace(string(output))
-
-    if path == "" { // User cancelled. Handle this in main		
-        return "", nil
-    }
-
-    // Path Validation (Still Essential)
-    if _, err := os.Stat(path); os.IsNotExist(err) {
-        return "", fmt.Errorf("selected path does not exist: %s", path)
-    } else if err != nil {
-        return "", fmt.Errorf("error checking path: %w", err)
-    } else {
-        fileInfo, err := os.Stat(path)
-        if err != nil {
-            return "", fmt.Errorf("error getting file info: %w", err)
-        }
-        if !fileInfo.IsDir() {
-            return "", fmt.Errorf("selected path is not a directory: %s", path)
-        }
-    }
-
-    return path, nil
-}
 
 func versionToInt(versionStr string) int {
 	//used to compair app version numbers
@@ -222,7 +174,7 @@ func downloadFile(dlFilepath string, url string) (string, error) {
 		var infoStr string = ""
         // Get the data
 		c := &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 120 * time.Second,
 		}
         resp, err := c.Get(url)
         if err != nil {
@@ -286,21 +238,19 @@ func updateInstallPath(config *Config , configFilePath string) tea.Cmd {
 	//changes Add-on install path
 	// installDir global var
 	return func() tea.Msg {
+
 		var infoStr string = ""		
 		//launch folderPickerWindows
-		installDirTemp, err := folderPickerWindows()
+		//installDirTemp, err := folderPickerWindows()	
+		installDirTemp, err := folderpicker.Prompt("Select Your GW2 Game folder")
 			if err != nil {
 					//log.Println(err)
-					return errMsg{fmt.Errorf(errorStyle.Render("File Picker Error. Press Ctrl-Z"), err)}
+					return errMsg{fmt.Errorf(errorStyle.Render("File Picker Error. Press Ctrl-Z : %s"), err)}
 			}
 
-			if installDirTemp == "" {
-					//log.Println("No folder selected.")				
-					infoStr += errorStyle.Render("No folder selected. Press Ctrl-Z") + "\n"
-					return statusMsg(infoStr)
-			} else {
-					//fmt.Println("Selected folder:", installDir)
-					infoStr += warrningStyle.Render("Selected folder: " + installDirTemp ) + "\n"	
+			if installDirTemp != "" {			
+				//fmt.Println("Selected folder:", installDir)
+				infoStr += warrningStyle.Render("Selected folder: " + installDirTemp ) + "\n"	
 			}
 		if installDirTemp != "" {
 			//only empty if user canclled dialog. no change to installDir		
@@ -487,7 +437,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         switch msg := msg.(type) {
 		case errMsg: 
-			m.err = msg.err
+			m.err = msg.err				
 		case statusMsg:
 				m.status = string(msg)
         case tea.KeyMsg:
@@ -496,10 +446,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.quitting = true
                         return m, tea.Quit
                 case "up", "j":
+						if m.err != nil {m.err = nil} //clear error msg
                         if m.cursor > 0 {
                                 m.cursor--
                         }
+						m.err = nil
                 case "down", "k":
+						if m.err != nil {m.err = nil} //clear error msg
                         if m.cursor < len(m.choices)-1 {
                                 m.cursor++
                         }
@@ -577,8 +530,11 @@ func (m model) View() string {
 		} else {
 			mode = inlineMode
 		}
-		//show errors
-		if m.err != nil{uiString += string(m.err.Error()) + "\n"}
+		//show errors above header 
+		if m.err != nil && m.cursor != 5 {	uiString += string(m.err.Error()) + "\n"}
+		
+		
+		
 		
 		if  mode == altscreenMode {
 			// Handle downloading ui here
