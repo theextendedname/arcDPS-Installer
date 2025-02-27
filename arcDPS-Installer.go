@@ -2,7 +2,10 @@ package main
 
 import (
         "io"
-		"io/ioutil"		
+		"io/ioutil"	
+		"bufio"
+		"encoding/hex"
+		"crypto/md5"
 		"net/http"
 		"net/url"
 		"os"				
@@ -16,7 +19,8 @@ import (
         tea "github.com/charmbracelet/bubbletea"
 		"github.com/charmbracelet/lipgloss"
 		"golang.org/x/sys/windows/registry"	
-		"arcDPS_Installer/folderpicker"			
+		"arcDPS_Installer/folderpicker"
+		"arcDPS_Installer/getfileversion"	
 )
 
 var version string // Declare version variable
@@ -298,18 +302,116 @@ func checkAppUpdates(urlString string ) tea.Cmd {
 	}
 
 }
+func getFirstWordFromURL(url string) (string, error) {
+        resp, err := http.Get(url)
+        if err != nil {
+                return "", fmt.Errorf("failed to get URL: %w", err)
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK {
+                return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+        }
+
+        reader := bufio.NewReader(resp.Body)
+        line, err := reader.ReadString('\n')
+        if err != nil && err != io.EOF {
+                return "", fmt.Errorf("failed to read line: %w", err)
+        }
+
+        line = strings.TrimSpace(line) // Remove leading/trailing whitespace
+
+        if line == "" {
+                return "", fmt.Errorf("first line is empty")
+        }
+
+        words := strings.Split(line, " ")
+        if len(words) == 0 {
+                return "", fmt.Errorf("no words found in the first line")
+        }
+
+        return words[0], nil
+}
+func compareMD5(filePath string, expectedMD5 string) bool {
+        // Open the file.
+        file, err := os.Open(filePath)
+        if err != nil {
+                return false // Return false on error
+        }
+        defer file.Close()
+
+        // Create a new MD5 hash.
+        hash := md5.New()
+
+        // Copy the file content into the hash.
+        if _, err := io.Copy(hash, file); err != nil {
+                return false // Return false on error
+        }
+
+        // Get the calculated MD5 hash as a byte slice.
+        calculatedMD5Bytes := hash.Sum(nil)
+
+        // Convert the byte slice to a hexadecimal string.
+        calculatedMD5 := hex.EncodeToString(calculatedMD5Bytes)
+
+        // Compare the calculated MD5 with the expected MD5.
+        return calculatedMD5 == expectedMD5
+}
+
+
+func addonNeedsUpdate_arcDPS(filePath string)(bool){
+	//returns true if the md5sum does not match
+	arcDPS_md5sum, err := getFirstWordFromURL("https://www.deltaconnected.com/arcdps/x64/d3d11.dll.md5sum")
+	  if err != nil{//update if we don't get a md5 from url
+		  return true	
+	  }
+	if compareMD5(filePath, arcDPS_md5sum){//if they match we don't need an update
+		return false
+	}
+	return true	
+}
+
+func addonNeedsUpdate_GitHub(filePath string, remoteAppVer string)(bool){
+	//return true if addon has an Update or error
+	//return false if addon does not need an update 
+	
+	if remoteAppVer == "" { //no version info. it needs an update
+		return true
+	}
+	 if _, err := os.Stat(filePath); os.IsNotExist(err) { //no local file. it needs an update
+          return true
+        }
+
+	 localVersion, err := getfileversion.GetFileVersion(filePath)
+        if err != nil {                
+            return true
+        }
+	remoteAppVerInt := versionToInt(remoteAppVer[1:])
+	localVersionInt := versionToInt(localVersion)
+	//remoteAppVerInt is the remote Add-on version
+	//localVersionInt is the local version 
+	if localVersionInt < remoteAppVerInt {
+		//local version is lessthan remote version. it needs an update
+		return true	
+	}	
+	return false
+}
+
 func insatll_Addon(installDir string, urlString string, addonName string, DlUrlAry []string )(string, error) {
+	var Addon_Version string = ""
 	var fileDestinationPath string = ""	
 	var infoStr string = ""	
+	var needsUpdate bool = true
 	if DlUrlAry[0] != "" {	//add-on is on github	
-		Addon_Version , err:= getLatestAppVer_Github(urlString)
+		var err error
+		Addon_Version , err = getLatestAppVer_Github(urlString)
 		if err != nil {
 			return infoStr, fmt.Errorf(errorStyle.Render("Error checking " + addonName + " Add-on version: %s"), err)
 		}else { // Handle potential URL parsing errors		
 		//set the new url to latest version
 		urlString = DlUrlAry[0] + Addon_Version + DlUrlAry[1]		
 		infoStr += addonName + " Add-on Version: " + Addon_Version + "\n"
-		infoStr += "Final URL: " + urlString + "\n"
+		infoStr += "Final URL: " + urlString + "\n"		
 		}
 	}
 	 // Extract the filename from the URL  
@@ -321,18 +423,38 @@ func insatll_Addon(installDir string, urlString string, addonName string, DlUrlA
         fileDestinationPath = filepath.Join(installDir , fileName) // Join path components correctly
 		if DlUrlAry[0] == ""{	//add-on is not on github
 			//no version numb 
-			infoStr += "Final URL: " + DlUrlAry[1]  + "\n"		
-		} 
+			infoStr += "Final URL: " + DlUrlAry[1]  + "\n"
+			//check if arcDPS needs an update
+			needsUpdate = addonNeedsUpdate_arcDPS(fileDestinationPath)
+			var err error			
+			Addon_Version, err = getfileversion.GetFileVersion(fileDestinationPath)
+			if err != nil {Addon_Version = "0.0.1"}			
+		} else {
+			//check if addons on github need an update
+			needsUpdate = addonNeedsUpdate_GitHub(fileDestinationPath, Addon_Version )
+		}
 		infoStr += addonName + " Add-on Dll destination: [" + fileDestinationPath +"]" + "\n"
 	}
-	
-	dlInfo, err := downloadFile(fileDestinationPath, urlString)
-	infoStr += dlInfo 
-	if err != nil {		
-		return infoStr, err
-	}
+	//set needsUpdate true/false bool
+		//needsUpdate = addonNeedsUpdate(fileDestinationPath, Addon_Version) 
+		//localVersion, err := getfileversion.GetFileVersion(fileDestinationPath)
+		//infoStr += addonName + " Local Add-on Version: " + localVersion + "\n"
+		//infoStr += addonName + " Remote Add-on Version: " + Addon_Version + "\n"
+		
+		 
+	 if  needsUpdate {
+		dlInfo, err := downloadFile(fileDestinationPath, urlString)
+		infoStr += dlInfo 
+		if err != nil {		
+			return infoStr, err
+		}
+	 }else{
+		infoStr += addonName + " is already installed. Latest version: " + Addon_Version + "\n"
+	 }
 	return infoStr, nil
 }
+
+
 func removeAddOns(installDir string) string {
 	var infoStr string	= ""							
 	files := []string{installDir + "\\d3d11.dll", installDir + "\\arcdps_healing_stats.dll", installDir + "\\d3d9_arcdps_table.dll", installDir + "\\bin64\\d3d11.dll", installDir + "\\bin64\\arcdps_healing_stats.dll", installDir + "\\bin64\\d3d9_arcdps_table.dll"  , filepath.Dir(installDir) + "\\d3d11.dll", filepath.Dir(installDir) + "\\arcdps_healing_stats.dll", filepath.Dir(installDir) + "\\d3d9_arcdps_table.dll"}
@@ -381,7 +503,7 @@ func downloadFunc(opt int ) tea.Cmd {
 						return errMsg{fmt.Errorf(errorStyle.Render("Error downloading arcDPS: %s" ), err)}
 						//return statusMsg(infoStr) , fmt.Errorf(Red + "Error downloading arcDPS:" + Reset, err)
 				} else {
-						infoStr += sucessStyle.Render("arcDPS downloaded") + "\n"
+						infoStr += sucessStyle.Render("arcDPS - job complete") + "\n"
 						infoStr += dlSeperatorStyle.Render("---------------------------------------------------") + "\n"	
 						infoCache += infoStr
 						return statusMsg( infoStr)
@@ -392,7 +514,7 @@ func downloadFunc(opt int ) tea.Cmd {
 						 return errMsg{fmt.Errorf(errorStyle.Render("Error downloading Healing Add-on: %s"), err)}
 						//return statusMsg(infoStr) ,fmt.Errorf(Red + "Error downloading Healing Add-on:" + Reset, err)
 				} else {
-						infoStr += sucessStyle.Render( "Healing Add-on downloaded") + "\n"
+						infoStr += sucessStyle.Render( "Healing Add-on - job complete") + "\n"
 						infoStr += dlSeperatorStyle.Render("---------------------------------------------------") + "\n"	
 						infoCache += infoStr						
 						return statusMsg(infoStr)
@@ -404,7 +526,7 @@ func downloadFunc(opt int ) tea.Cmd {
 						//return statusMsg(infoStr) , fmt.Errorf(Red + "Error downloading BoonTable Add-on:" + Reset, err)
 				} else {
 					
-					infoStr += sucessStyle.Render("BoonTable Add-on downloaded") + "\n"
+					infoStr += sucessStyle.Render("BoonTable Add-on - job complete") + "\n"
 					infoStr += dlSeperatorStyle.Render("---------------------------------------------------") + "\n"		
 					infoCache += infoStr
 					return statusMsg(infoStr)
