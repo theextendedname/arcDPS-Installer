@@ -402,8 +402,9 @@ func insatll_Addon(installDir string, urlString string, addonName string, DlUrlA
 	var fileDestinationPath string = ""	
 	var infoStr string = ""	
 	var needsUpdate bool = true
+	var err error
 	if DlUrlAry[0] != "" {	//add-on is on github	
-		var err error
+		
 		Addon_Version , err = getLatestAppVer_Github(urlString)
 		if err != nil {
 			return infoStr, fmt.Errorf(errorStyle.Render("Error checking " + addonName + " Add-on version: %s"), err)
@@ -426,7 +427,7 @@ func insatll_Addon(installDir string, urlString string, addonName string, DlUrlA
 			infoStr += "Final URL: " + DlUrlAry[1]  + "\n"
 			//check if arcDPS needs an update
 			needsUpdate = addonNeedsUpdate_arcDPS(fileDestinationPath)
-			var err error			
+					
 			Addon_Version, err = getfileversion.GetFileVersion(fileDestinationPath)
 			if err != nil {Addon_Version = "0.0.1"}			
 		} else {
@@ -448,6 +449,10 @@ func insatll_Addon(installDir string, urlString string, addonName string, DlUrlA
 		if err != nil {		
 			return infoStr, err
 		}
+					
+		Addon_Version, err = getfileversion.GetFileVersion(fileDestinationPath)
+		if err != nil {Addon_Version = "0.0.1"}	
+		infoStr += addonName + " has been updated. Latest version: " + Addon_Version + "\n"
 	 }else{
 		infoStr += addonName + " is already installed. Latest version: " + Addon_Version + "\n"
 	 }
