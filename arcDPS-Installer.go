@@ -398,7 +398,7 @@ func addonNeedsUpdate_GitHub(filePath string, remoteAppVer string)(bool){
 }
 
 func insatll_Addon(installDir string, urlString string, addonName string, DlUrlAry []string )(string, error) {
-	var Addon_Version string = ""
+	var Addon_Version string = ""    
 	var fileDestinationPath string = ""	
 	var infoStr string = ""	
 	var needsUpdate bool = true
@@ -409,10 +409,10 @@ func insatll_Addon(installDir string, urlString string, addonName string, DlUrlA
 		if err != nil {
 			return infoStr, fmt.Errorf(errorStyle.Render("Error checking " + addonName + " Add-on version: %s"), err)
 		}else { // Handle potential URL parsing errors		
-		//set the new url to latest version
-		urlString = DlUrlAry[0] + Addon_Version + DlUrlAry[1]		
-		infoStr += addonName + " Add-on Version: " + Addon_Version + "\n"
-		infoStr += "Final URL: " + urlString + "\n"		
+            //set the new url to latest version
+            urlString = DlUrlAry[0] + Addon_Version + DlUrlAry[1] 
+            infoStr += addonName + " Add-on Remote Version: " + Addon_Version + "\n"
+            infoStr += "Final URL: " + urlString + "\n"		
 		}
 	}
 	 // Extract the filename from the URL  
@@ -432,8 +432,12 @@ func insatll_Addon(installDir string, urlString string, addonName string, DlUrlA
 			if err != nil {Addon_Version = "0.0.1"}			
 		} else {
 			//check if addons on github need an update
-			needsUpdate = addonNeedsUpdate_GitHub(fileDestinationPath, Addon_Version )
+			needsUpdate = addonNeedsUpdate_GitHub(fileDestinationPath, Addon_Version )     
+            
 		}
+        localVersion, err := getfileversion.GetFileVersion(fileDestinationPath)
+        if err != nil {localVersion = "0.0.1"}	
+        infoStr += addonName + " Add-on Local Version: " + localVersion + "\n"
 		infoStr += addonName + " Add-on Dll destination: [" + fileDestinationPath +"]" + "\n"
 	}
 	//set needsUpdate true/false bool

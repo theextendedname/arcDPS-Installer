@@ -71,8 +71,8 @@ func GetFileVersion(filePath string) (string, error) {
         major := fixedFileInfo.DwFileVersionMS >> 16
         minor := fixedFileInfo.DwFileVersionMS & 0xFFFF
         build := fixedFileInfo.DwFileVersionLS >> 16
-        revision := fixedFileInfo.DwFileVersionLS & 0xFFFF
+        //revision := fixedFileInfo.DwFileVersionLS & 0xFFFF
 
-        return fmt.Sprintf("%d.%d.%d.%d", major, minor, build, revision), nil
-		//return fmt.Sprintf("%d.%d.%d", major, minor, build), nil
+        //return fmt.Sprintf("%d.%d.%d.%d", major, minor, build, revision), nil        
+		return fmt.Sprintf("%d.%d.%d", major, minor, build), nil
 }
