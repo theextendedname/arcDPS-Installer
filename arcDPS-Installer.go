@@ -159,6 +159,9 @@ func directoryExists(path string) bool {
 
 func versionToInt(versionStr string) int {
 	//used to compair app version numbers
+	versionStr = strings.TrimSpace(versionStr)
+	versionStr = strings.TrimPrefix(versionStr, "v")
+	versionStr = strings.TrimPrefix(versionStr, "V")
 	if versionStr == "" {
 		//set minimum version		
 		versionStr = "0.0.1"		
@@ -287,7 +290,7 @@ func checkAppUpdates(urlString string ) tea.Cmd {
 			//return infoStr, fmt.Errorf(errorStyle.Render("Error checking " + addonName + " Add-on version: %s"), err)
 			return errMsg{fmt.Errorf(errorStyle.Render("Error checking app updates: %s"), err)}
 		}else { 	
-				latestAppVersionInt := versionToInt(latestAppVersion[1:])
+				latestAppVersionInt := versionToInt(latestAppVersion)
 				versionInt := versionToInt(version)
 				//version is set at compile time so in could be empty during testing
 				//versionInt will be set to 0.0.1
@@ -386,7 +389,7 @@ func addonNeedsUpdate_GitHub(filePath string, remoteAppVer string)(bool){
         if err != nil {                
             return true
         }
-	remoteAppVerInt := versionToInt(remoteAppVer[1:])
+	remoteAppVerInt := versionToInt(remoteAppVer)
 	localVersionInt := versionToInt(localVersion)
 	//remoteAppVerInt is the remote Add-on version
 	//localVersionInt is the local version 
