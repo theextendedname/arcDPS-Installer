@@ -24,6 +24,30 @@ Build the Linux binary with:
 ```bash
 GOOS=linux GOARCH=amd64 go build -o arcDPS-Installer-linux .
 ```
-
+Linux handles this differently from Windows.
+    
+    On Windows, a console-subsystem executable
+    automatically receives a console window. Linux desktop
+    environments generally do not create a terminal when
+    an executable is double-clicked.
+    
+    The minimal Linux solution is a .desktop launcher
+    with Terminal=true:
+    
+    ini
+    [Desktop Entry]
+    Type=Application
+    Name=arcDPS Installer
+    Comment=Install and update Guild Wars 2 add-ons
+    Exec=/full/path/to/arcDPS-Installer-linux
+    Icon=utilities-terminal
+    Terminal=true
+    Categories=Utility;
+    
+    
+    When launched from the application menu or desktop,
+    Linux opens the utility inside the user’s configured
+    terminal.
+    
 - ![operation](https://github.com/theextendedname/arcDPS-Installer/blob/main/arcDPS-Installer-Demo.gif)
 Enjoy!
