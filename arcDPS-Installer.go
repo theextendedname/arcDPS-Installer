@@ -10,6 +10,7 @@ import (
 		"net/url"
 		"os"				
 		"path/filepath"
+		"runtime"
 		"fmt"
 		"time"
 		"log"
@@ -18,7 +19,6 @@ import (
 		"encoding/json"		
         tea "github.com/charmbracelet/bubbletea"
 		"github.com/charmbracelet/lipgloss"
-		"golang.org/x/sys/windows/registry"	
 		"arcDPS_Installer/folderpicker"
 		"arcDPS_Installer/getFileVersion"
 )
@@ -29,8 +29,7 @@ type Config struct {// Configuration structure
         GW2PathOverRide string `json:""`        
 }
 
-//var installDir string = "D:\\Games\\Guild Wars 2" //install path for GW2-64.exe
-var installDir string = "C:\\Program Files\\Guild Wars 2" //default install path for GW2-64.exe
+var installDir string = defaultInstallDir()
 var configFilePath string = ""
 
 //define urls 
@@ -86,23 +85,6 @@ func getResponseURI(url string) (string, error) {
     }
 
         return resp.Request.URL.String(), nil // Return the final URL (after redirects)
-}
-
-func getInstallPath() (string, error) {
-	//read a key from the windows registry
-        key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\ArenaNet\Guild Wars 2`, registry.QUERY_VALUE)
-        if err != nil {
-                return "", fmt.Errorf("error opening registry key: %w", err)
-        }
-        defer key.Close()
-
-        path, _, err := key.GetStringValue("Path")
-        if err != nil {
-                return "", fmt.Errorf("error reading registry value: %w", err)
-        }
-		//only return the game dir
-		path  = filepath.Dir(path)
-        return path, nil
 }
 
 func loadConfig(filepath string) (*Config, error) {
@@ -469,10 +451,20 @@ func insatll_Addon(installDir string, urlString string, addonName string, DlUrlA
 
 func removeAddOns(installDir string) string {
 	var infoStr string	= ""							
-	files := []string{installDir + "\\d3d11.dll", installDir + "\\arcdps_healing_stats.dll", installDir + "\\d3d9_arcdps_table.dll", installDir + "\\bin64\\d3d11.dll", installDir + "\\bin64\\arcdps_healing_stats.dll", installDir + "\\bin64\\d3d9_arcdps_table.dll"  , filepath.Dir(installDir) + "\\d3d11.dll", filepath.Dir(installDir) + "\\arcdps_healing_stats.dll", filepath.Dir(installDir) + "\\d3d9_arcdps_table.dll"}
+	files := []string{
+		filepath.Join(installDir, "d3d11.dll"),
+		filepath.Join(installDir, "arcdps_healing_stats.dll"),
+		filepath.Join(installDir, "d3d9_arcdps_table.dll"),
+		filepath.Join(installDir, "bin64", "d3d11.dll"),
+		filepath.Join(installDir, "bin64", "arcdps_healing_stats.dll"),
+		filepath.Join(installDir, "bin64", "d3d9_arcdps_table.dll"),
+		filepath.Join(filepath.Dir(installDir), "d3d11.dll"),
+		filepath.Join(filepath.Dir(installDir), "arcdps_healing_stats.dll"),
+		filepath.Join(filepath.Dir(installDir), "d3d9_arcdps_table.dll"),
+	}
 	for _, file := range files {
 		//infoStr += filepath.Base(filepath.Dir(file))
-			if strings.Contains(file , "\\bin64\\bin64" ) {continue}   
+			if strings.Contains(file, filepath.Join("bin64", "bin64")) {continue}   
 			
 			if filepath.Base(filepath.Dir(file)) == "Guild Wars 2" || filepath.Base(filepath.Dir(file)) == "bin64" {
 			
@@ -732,17 +724,26 @@ func main() {
 	config, err := loadConfig(configFilePath)
 	if err == nil {	
 		if config.GW2PathOverRide == "" {
-			// no config found use what's in the registry
-			//get install dir from registry
-			installDirTmp , err := getInstallPath()			
-			if err == nil &&  directoryExists(installDirTmp){		
-			//set install dir from registry
-			installDir = installDirTmp
+			installDirTmp, pathErr := getInstallPath()
+			if pathErr == nil && directoryExists(installDirTmp) {
+				installDir = installDirTmp
 			}
-			//if there is an error the installDir has the default set by global var
-		}else{
-		//config found use it
-		installDir = config.GW2PathOverRide
+		} else {
+			installDir = config.GW2PathOverRide
+		}
+
+		if runtime.GOOS == "linux" && !directoryExists(installDir) {
+			fmt.Printf("Guild Wars 2 was not found at %s. Please select the Guild Wars 2 folder.\n", installDir)
+			selectedDir, pickerErr := folderpicker.Prompt("Select Your GW2 Game folder")
+			if pickerErr != nil {
+				fmt.Printf("Unable to select Guild Wars 2 folder: %v\n", pickerErr)
+			} else {
+				installDir = selectedDir
+				config.GW2PathOverRide = installDir
+				if saveErr := saveConfig(config, configFilePath); saveErr != nil {
+					fmt.Printf("Unable to save Guild Wars 2 folder: %v\n", saveErr)
+				}
+			}
 		}
 	}//if there is an error the installDir has the default set by global var
 		

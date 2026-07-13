@@ -14,5 +14,16 @@ A simple app to download the following Guild Wars 2 add-ons and place them in yo
 - Use ↑↓ Arrow or JK to select options
 - Press Ctrl + Z to switch between Main Menu and Status Views 
 - Press Q to Quit
+
+## Linux
+
+Guild Wars 2 is detected at `~/.local/share/Steam/steamapps/common/Guild Wars 2/` by default. If it is not there, the installer opens a GUI folder picker using `zenity` or `kdialog`.
+
+Build the Linux binary with:
+
+```bash
+GOOS=linux GOARCH=amd64 go build -o arcDPS-Installer-linux .
+```
+
 - ![operation](https://github.com/theextendedname/arcDPS-Installer/blob/main/arcDPS-Installer-Demo.gif)
 Enjoy!
