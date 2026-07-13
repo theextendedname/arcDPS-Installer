@@ -20,7 +20,7 @@ import (
 		"github.com/charmbracelet/lipgloss"
 		"golang.org/x/sys/windows/registry"	
 		"arcDPS_Installer/folderpicker"
-		"arcDPS_Installer/getfileversion"	
+		"arcDPS_Installer/getFileVersion"
 )
 
 var version string // Declare version variable
