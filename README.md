@@ -24,7 +24,7 @@ Build the Linux binary with:
 ```bash
 GOOS=linux GOARCH=amd64 go build -o arcDPS-Installer-linux .
 ```
-Linux handles this differently from Windows.
+Linux handles CLI apps differently from Windows.
     
     On Windows, a console-subsystem executable
     automatically receives a console window. Linux desktop
